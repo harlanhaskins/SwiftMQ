@@ -77,6 +77,21 @@ struct SharedMemory: ~Copyable {
     }
 
     @_transparent
+    func load<T: BitwiseCopyable>(fromByteOffset offset: Int = 0, as type: T.Type) -> T {
+        buffer.baseAddress!.loadUnaligned(fromByteOffset: offset, as: T.self)
+    }
+
+    @_transparent
+    func withBytes<Result, E: Error>(
+        atByteOffset offset: Int = 0,
+        count: Int,
+        perform: (UnsafeRawBufferPointer) throws(E) -> Result
+    ) throws(E) -> Result {
+        let ptr = buffer.baseAddress!.advanced(by: offset)
+        return try perform(UnsafeRawBufferPointer(start: ptr, count: count))
+    }
+
+    @_transparent
     func withBuffer<T: ~Copyable, Result, E: Error>(
         ofType: T.Type = T.self,
         atByteOffset offset: Int = 0,

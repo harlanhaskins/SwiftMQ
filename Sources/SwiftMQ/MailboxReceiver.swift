@@ -38,24 +38,18 @@ public final class MailboxReceiver {
         let offset = MailboxLayout.slotsOffset + slotIndex * mapping.slotStride
         precondition(offset + mapping.slotStride <= mapping.totalSize, "slot read out of bounds")
 
-        // First, read the payload from the slot.
-
-        let length = mapping.shmem.withBuffer(ofType: UInt32.self, atByteOffset: offset, count: 1) { lengthSpan in
-            Int(lengthSpan[0])
-        }
+        // First, read the payload length from the slot.
+        let length = Int(mapping.shmem.load(fromByteOffset: offset, as: UInt32.self))
 
         // Make sure the length is within bounds.
         guard length <= mapping.slotSize else { return false }
 
         // Clear the buffer and then read the contents of the payload into it.
-
         buffer.removeAll(keepingCapacity: true)
         if length > 0 {
             let payloadOffset = offset + MemoryLayout<UInt32>.size
             mapping.shmem.withBuffer(ofType: UInt8.self, atByteOffset: payloadOffset, count: length) { payloadSpan in
-                for i in 0..<length {
-                    buffer.append(payloadSpan[i])
-                }
+                buffer.append(contentsOf: payloadSpan)
             }
         }
 
