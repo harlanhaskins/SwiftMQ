@@ -20,8 +20,7 @@ final class MailboxMapping {
         name: String,
         role: MailboxRole
     ) throws {
-        let canonical = MailboxLayout.canonicalName(name)
-        guard canonical.utf8.count <= MailboxLayout.maxNameLength else {
+        guard name.utf8.count <= MailboxLayout.maxNameLength else {
             throw MailboxError.nameTooLong(max: MailboxLayout.maxNameLength)
         }
 
@@ -54,7 +53,7 @@ final class MailboxMapping {
 
         slotStride = MailboxLayout.slotStride(slotSize: slotSize)
         totalSize = MailboxLayout.totalSize(slotCount: slotCount, slotSize: slotSize)
-        self.name = canonical
+        self.name = name
     }
 
     func withHeader(_ update: (inout MailboxLayout.Header) -> Void) {

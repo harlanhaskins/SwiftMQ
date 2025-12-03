@@ -75,8 +75,4 @@ enum MailboxLayout {
     static func totalSize(slotCount: Int, slotSize: Int) -> Int {
         headerSize + slotCount * slotStride(slotSize: slotSize)
     }
-
-    static func canonicalName(_ name: String) -> String {
-        name.hasPrefix("/") ? name : "/\(name)"
-    }
 }
