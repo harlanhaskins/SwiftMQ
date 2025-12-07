@@ -29,6 +29,17 @@ public final class MailboxReceiver {
     /// Returns true when a fresh message was read.
     @discardableResult
     public func poll(into buffer: inout [UInt8]) -> Bool {
+        poll { payloadSpan in
+            buffer.removeAll(keepingCapacity: true)
+            buffer.append(contentsOf: payloadSpan)
+        }
+    }
+
+    /// Poll with direct read access to the underlying buffer pointer, avoiding copies.
+    /// The reader closure receives an `UnsafeBufferPointer<UInt8>` with the message payload.
+    /// Returns true when a fresh message was read.
+    @discardableResult
+    public func poll(_ reader: (UnsafeBufferPointer<UInt8>) throws -> Void) rethrows -> Bool {
         let (head, tail) = mapping.consumerHeadAndTail
         if tail == head {
             return false
@@ -44,13 +55,14 @@ public final class MailboxReceiver {
         // Make sure the length is within bounds.
         guard length <= mapping.slotSize else { return false }
 
-        // Clear the buffer and then read the contents of the payload into it.
-        buffer.removeAll(keepingCapacity: true)
+        // Give the reader direct access to the payload buffer.
         if length > 0 {
             let payloadOffset = offset + MemoryLayout<UInt32>.size
-            mapping.shmem.withBuffer(ofType: UInt8.self, atByteOffset: payloadOffset, count: length) { payloadSpan in
-                buffer.append(contentsOf: payloadSpan)
+            try mapping.shmem.withBuffer(ofType: UInt8.self, atByteOffset: payloadOffset, count: length) { payloadSpan in
+                try reader(payloadSpan)
             }
+        } else {
+            try reader(UnsafeBufferPointer(start: nil, count: 0))
         }
 
         // Once we've read the full payload, atomically update the tail to free it in the publisher.

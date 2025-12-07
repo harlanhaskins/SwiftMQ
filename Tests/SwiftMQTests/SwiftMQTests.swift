@@ -59,4 +59,32 @@ import Testing
 
         #expect(received == messages)
     }
+
+    @Test func zeroCopyPoll() throws {
+        let name = "smq.\(UUID().uuidString.prefix(8))"
+        let publisher = try MailboxPublisher(name: name, slots: 1024, slotSize: 256)
+        let receiver = try MailboxReceiver(name: name)
+
+        // Publish using zero-copy write
+        try publisher.publish { buffer in
+            let testData: [UInt8] = [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE]
+            for (i, byte) in testData.enumerated() {
+                buffer[i] = byte
+            }
+            return testData.count
+        }
+
+        // Read using zero-copy poll
+        var receivedBytes: [UInt8] = []
+        let wasRead = receiver.poll { buffer in
+            receivedBytes = Array(buffer)
+        }
+
+        #expect(wasRead == true)
+        #expect(receivedBytes == [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE])
+
+        // Verify no more messages
+        let wasReadAgain = receiver.poll { _ in }
+        #expect(wasReadAgain == false)
+    }
 }
